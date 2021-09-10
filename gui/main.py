@@ -1,3 +1,4 @@
+import signal
 import sys
 from PySide2.QtCore import QTimer
 from PySide2.QtGui import QImage
@@ -24,11 +25,21 @@ def refresh_cv_image():
     print( "test" )
     # print( img )
 
-imagePeriod = 1000/25
-imageTimer = QTimer()
-imageTimer.setInterval(imagePeriod)
-imageTimer.timeout.connect(refresh_cv_image)
-imageTimer.start()
+def sigint_handler(*args):
+    """Handler for the SIGINT signal."""
+    sys.stderr.write('\r')
+    # QApplication.quit()
+    app.quit()
 
 
-sys.exit( app.exec_() )
+
+if __name__ == "__main__":
+    signal.signal(signal.SIGINT, sigint_handler)
+
+    imagePeriod = 1000/25
+    imageTimer = QTimer()
+    imageTimer.setInterval(imagePeriod)
+    imageTimer.timeout.connect(refresh_cv_image)
+    imageTimer.start()
+
+    sys.exit( app.exec_() )
