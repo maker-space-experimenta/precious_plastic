@@ -1,18 +1,23 @@
 import urllib.request as urllib
 import cv2
 import numpy as np
-import time
-
+from matplotlib import pyplot as plt
 
 
 
 color_light = np.array([0, 0, 0])
 color_dark = np.array([181, 148, 255])
 
-name = "test"
+crop_y=50
+crop_x=60
+crop_h=400
+crop_w=580
 
-cv2.namedWindow(name, cv2.WINDOW_NORMAL)
+name = "particle selection"
+
+cv2.namedWindow(name, cv2.WINDOW_FREERATIO)
 cv2.resizeWindow(name, 1980, 1024)
+cv2.setWindowProperty(name, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
 # device = cv2.CAP_OPENNI
 # device = cv2.CAP_ANY
@@ -44,54 +49,50 @@ while True:
 
     # Use urllib to get the image and convert into a cv2 usable format
     ret, frame = cap.read()
-    # frame = cv2.resize(frame, (320, 240), interpolation = cv2.INTER_AREA)
+    frame_croped = frame[crop_y:crop_y+crop_h, crop_x:crop_x+crop_w]
+
+    frame_hsv = cv2.cvtColor(frame_croped, cv2.COLOR_BGR2HSV)
+    frame_gray = cv2.cvtColor(frame_hsv, cv2.COLOR_BGR2GRAY)
+    frame_gray_denoised = cv2.fastNlMeansDenoising(frame_gray, None, 10, 7, 21)
+
+    frame_thresh = cv2.adaptiveThreshold(frame_gray_denoised, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 9, 2)
+    contours, hierarchy = cv2.findContours(frame_thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
 
 
-    y=50
-    x=60
-    h=400
-    w=580
-    frame = frame[y:y+h, x:x+w]
-
-
-
-    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    # mask = cv2.inRange(hsv, color_light, color_dark)
-    # masked = cv2.bitwise_and(frame,frame, mask= mask)
-
-    imgray = cv2.cvtColor(hsv, cv2.COLOR_BGR2GRAY)
-    imgray = cv2.fastNlMeansDenoising(imgray, None, 10, 7, 21)
-
-    # ret, thresh = cv2.threshold(imgray, 127, 255, 0)
-    # thresh = cv2.adaptiveThreshold(imgray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
-    thresh = cv2.adaptiveThreshold(imgray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 9, 2)
-    contours, hierarchy = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-    # cv2.drawContours(frame, contours, -1, (0,255,0), 3)
-
-    print(len(contours))
-    print(len(hierarchy))
-
-
-    height, width, _ = frame.shape
+    height, width, _ = frame_croped.shape
     min_x, min_y = width, height
     max_x = max_y = 0
+    frame_features_rect = frame_croped.copy()
     for contour in contours:
         (x,y,w,h) = cv2.boundingRect(contour)
-        # min_x, max_x = min(x, min_x), max(x+w, max_x)
-        # min_y, max_y = min(y, min_y), max(y+h, max_y)
         if w < 80 and h < 80:
-            frame = cv2.rectangle(frame, (x,y), (x+w,y+h), (255, 0, 0), 1)
-        # if max_x - min_x > 0 and max_y - min_y > 0:
-        #     frame = cv2.rectangle(frame, (min_x, min_y), (max_x, max_y), (255, 0, 0), 1)
+            frame_features_rect = cv2.rectangle(frame_features_rect, (x,y), (x+w,y+h), (255, 0, 0), 1)
+
 
     # cv2.imshow(name, thresh)
-    cv2.imshow(name, frame)
+    # cv2.imshow(name, frame)
 
-    # line1 = np.hstack((frame, thresh))
-    # line2= np.hstack((frame, masked))
-    # cv2.imshow(name, np.vstack((line1, line2)) )
+    line1 = np.hstack((cv2.resize(frame, (frame_croped.shape[1], frame_croped.shape[0]), interpolation = cv2.INTER_AREA) , frame_croped))
+    line2= np.hstack((frame_features_rect, cv2.cvtColor(frame_thresh, cv2.COLOR_GRAY2BGR)))
+    cv2.imshow(name, np.vstack((line1, line2)) )
 
     # cv2.imshow(name, np.hstack((frame, thresh)) )
+
+    # fig = plt.figure()
+    # color = ('b','g','r')
+    # for i,col in enumerate(color):
+    #     histr = cv2.calcHist([frame],[i],None,[256],[0,256])
+    #     plt.plot(histr,color = col)
+    #     plt.xlim([0,256])
+    # fig.canvas.draw()
+    # img_plot = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
+    # img_plot  = cv2.resize(img_plot, (frame.shape[0], frame.shape[0]), interpolation = cv2.INTER_AREA) 
+    
+    # cv2.imshow(name, np.hstack((cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY), img_plot) ))
+
+
+    
+
 
     if cv2.waitKey(1) & 0xFF == 27:
         break
